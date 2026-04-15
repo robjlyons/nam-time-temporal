@@ -21,7 +21,12 @@ def _parse_args():
     p.add_argument("--target", type=int, default=8192)
     p.add_argument("--checkpoint-every", type=int, default=500)
     p.add_argument("--preview-every", type=int, default=1000)
-    p.add_argument("--val-check-interval", type=int, default=1000)
+    p.add_argument(
+        "--val-check-interval",
+        type=int,
+        default=250,
+        help="Validation every N train batches; must be <= ceil(epoch_steps/batch_size).",
+    )
     p.add_argument("--log-every", type=int, default=50)
     p.add_argument("--num-workers", type=int, default=2)
     p.add_argument("--prefetch-factor", type=int, default=2)
@@ -71,8 +76,6 @@ def main():
             a.num_workers = 2
         if a.prefetch_factor == 2:
             a.prefetch_factor = 2
-        if a.val_check_interval == 1000:
-            a.val_check_interval = 1500
         if a.preview_every == 1000:
             a.preview_every = 1500
         if a.checkpoint_every == 500:

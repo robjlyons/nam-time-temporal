@@ -18,7 +18,8 @@ class TemporalTrainingConfig:
     validation_fraction: float = 0.1
     epoch_steps: int = 2000
     max_steps: int = 20000
-    val_check_interval: int = 500
+    # Must be <= ceil(epoch_steps / batch_size) for Lightning (batches per epoch).
+    val_check_interval: int = 250
     checkpoint_every_n_steps: int = 500
     preview_every_n_steps: int = 1000
     log_every_n_steps: int = 50

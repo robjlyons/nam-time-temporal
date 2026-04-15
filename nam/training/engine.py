@@ -92,6 +92,17 @@ def train_temporal_model(config: TemporalTrainingConfig):
     train_dl = DataLoader(train_ds, **dl_kwargs)
     val_dl = DataLoader(val_ds, **dl_kwargs)
 
+    n_train_batches = len(train_dl)
+    val_check_interval = int(config.val_check_interval)
+    if val_check_interval > n_train_batches:
+        print(
+            f"[progress] val_check_interval={val_check_interval} is greater than "
+            f"train batches per epoch ({n_train_batches}); using {n_train_batches}. "
+            "Raise epoch_steps (roughly val_check_interval * batch_size or higher) "
+            "if you want less frequent validation."
+        )
+        val_check_interval = n_train_batches
+
     module_config = {
         "net": {
             "name": "TemporalHybrid",
@@ -144,7 +155,7 @@ def train_temporal_model(config: TemporalTrainingConfig):
         default_root_dir=str(config.outdir),
         callbacks=callbacks,
         max_steps=config.max_steps,
-        val_check_interval=config.val_check_interval,
+        val_check_interval=val_check_interval,
         accelerator=accelerator,
         devices=devices,
         log_every_n_steps=config.log_every_n_steps,
