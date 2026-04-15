@@ -15,6 +15,7 @@ dependencies = [
     "librosa",
     "matplotlib",
     "numpy",
+    "fastapi",
     "pydantic>=2.0.0",
     "pytorch_lightning",
     "scipy",  # Required by auraloss
@@ -25,6 +26,7 @@ dependencies = [
     # enough so I'm adding it.
     "transformers>=4",
     "tqdm",
+    "uvicorn",
     "wavio>=0.0.5",
 ]
 dynamic = ["version"]
@@ -56,4 +58,13 @@ local_scheme = "no-local-version"
 write_to = "nam/_version.py"
 
 [tool.setuptools]
-packages = ["nam", "nam.train", "nam.train.gui", "nam.train.gui._resources", "nam.models", "nam.models._resources" ]
+packages = [
+    "nam",
+    "nam.train",
+    "nam.train.gui",
+    "nam.train.gui._resources",
+    "nam.models",
+    "nam.models._resources",
+    "nam.training",
+    "nam.inference",
+]

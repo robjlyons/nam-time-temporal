@@ -133,6 +133,8 @@ dmypy.json
 
 # Training outputs
 bin/train/outputs/
+runs/
+.mplcache/
 
 # cache files
 nam/train/gui/_resources/settings.json

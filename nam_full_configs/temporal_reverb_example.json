@@ -1,0 +1,21 @@
+{
+  "train": {
+    "input": "input.wav",
+    "output": "output.wav",
+    "outdir": "runs/reverb_large_hall",
+    "steps": 30000,
+    "batch_size": 8,
+    "context": 16384,
+    "target": 8192,
+    "checkpoint_every": 500,
+    "preview_every": 1000,
+    "device": "auto"
+  },
+  "notes": {
+    "capture_tips": [
+      "Ensure dry/wet files start from the same timeline position.",
+      "Use at least 2-3 minutes of varied excitation for long-tail reverbs.",
+      "If sample rates differ, trainer resamples the input to target sample rate."
+    ]
+  }
+}

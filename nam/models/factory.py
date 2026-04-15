@@ -15,6 +15,7 @@ from .conv_net import ConvNet as _ConvNet
 from .linear import Linear as _Linear
 from .recurrent import LSTM as _LSTM
 from .sequential import Sequential as _Sequential
+from .temporal_hybrid import TemporalHybrid as _TemporalHybrid
 from .wavenet import WaveNet as _WaveNet
 
 _logger = _logging.getLogger(__name__)
@@ -24,6 +25,7 @@ _model_net_init_registry = {
     "Linear": _Linear.init_from_config,
     "LSTM": _LSTM.init_from_config,
     "Sequential": _Sequential.init_from_config,
+    "TemporalHybrid": _TemporalHybrid.init_from_config,
     "WaveNet": _WaveNet.init_from_config,
 }
 

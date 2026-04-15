@@ -320,6 +320,7 @@ class LightningModule(_pl.LightningModule, _InitializableFromConfig):
         for v in loss_dict.values():
             if v.weight is not None and v.weight > 0.0:
                 loss = loss + v.weight * v.value
+        self.log("train_loss", loss, prog_bar=True, on_step=True, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):

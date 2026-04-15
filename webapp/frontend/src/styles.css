@@ -1,0 +1,47 @@
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  background: #0f1115;
+  color: #e8e9ee;
+}
+
+.page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  background: #171a21;
+  border: 1px solid #2d3340;
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+input,
+select,
+button {
+  border-radius: 8px;
+  border: 1px solid #3f4555;
+  background: #0f1115;
+  color: inherit;
+  padding: 8px;
+}
+
+button {
+  cursor: pointer;
+  background: #2f68ff;
+  border-color: #2f68ff;
+  color: white;
+}
+
+.log {
+  max-height: 240px;
+  overflow: auto;
+  font-size: 12px;
+  white-space: pre-wrap;
+}

@@ -13,4 +13,5 @@ from ._from_nam import init_from_nam  # noqa F401
 from .conv_net import ConvNet  # noqa F401
 from .linear import Linear  # noqa F401
 from .recurrent import LSTM  # noqa F401
+from .temporal_hybrid import TemporalHybrid  # noqa F401
 from .wavenet import WaveNet  # noqa F401

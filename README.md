@@ -18,6 +18,15 @@ cd docs
 make html
 ```
 
+## Temporal effects workflow
+
+This fork includes an extended temporal pipeline for delay/reverb captures:
+
+- `train.py` for long-context temporal training with checkpoints/resume and audio previews
+- `notebooks/temporal_colab.ipynb` — Colab/Kaggle-oriented notebook (GPU) mirroring the official three-step layout for this temporal trainer
+- `evaluate.py` for ESR/STFT scoring and rendered output audio
+- `webapp/backend` and `webapp/frontend` for browser-based training UX
+
 Or on Windows,
 ```
 cd docs
