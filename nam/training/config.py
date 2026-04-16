@@ -16,6 +16,8 @@ class TemporalTrainingConfig:
     target_samples: int = 8192
     overlap_samples: int = 1024
     validation_fraction: float = 0.1
+    deterministic_validation: bool = True
+    validation_seed: int = 1337
     epoch_steps: int = 2000
     max_steps: int = 20000
     # Must be <= ceil(epoch_steps / batch_size) for Lightning (batches per epoch).
@@ -25,6 +27,10 @@ class TemporalTrainingConfig:
     log_every_n_steps: int = 50
     precision: str = "32-true"
     learning_rate: float = 3e-4
+    lr_scheduler: Optional[str] = None  # none|reduce_on_plateau
+    lr_factor: float = 0.5
+    lr_patience: int = 6
+    lr_min: float = 1e-6
     hidden_size: int = 48
     local_channels: int = 16
     local_kernel_size: int = 5

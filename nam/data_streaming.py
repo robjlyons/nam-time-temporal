@@ -115,6 +115,7 @@ class LongSequenceDataset(_Dataset):
         validation_fraction: float = 0.1,
         seed: int = 42,
         epoch_steps: int = 10_000,
+        deterministic: bool = False,
     ):
         if context_samples < 1 or target_samples < 1:
             raise ValueError("context_samples and target_samples must be positive.")
@@ -126,6 +127,7 @@ class LongSequenceDataset(_Dataset):
         self._split = split
         self._rng = _np.random.default_rng(seed)
         self._epoch_steps = int(epoch_steps)
+        self._deterministic = bool(deterministic)
         self.sample_rate = pair.sample_rate
 
         n = pair.num_samples
@@ -140,14 +142,29 @@ class LongSequenceDataset(_Dataset):
         else:
             self._start_min = max(valid_start, cut)
             self._start_max = valid_stop
+        if self._start_max <= self._start_min:
+            self._start_max = self._start_min + 1
+        if self._deterministic:
+            # Fixed validation windows reduce val-loss noise across checkpoints.
+            self._deterministic_starts = _np.linspace(
+                self._start_min,
+                self._start_max - 1,
+                num=self._epoch_steps,
+                endpoint=True,
+                dtype=_np.int64,
+            )
+        else:
+            self._deterministic_starts = None
 
     def __len__(self) -> int:
         return self._epoch_steps
 
     def __getitem__(self, idx: int):
-        del idx
-        # Random windows with optional overlap jitter.
-        start = int(self._rng.integers(self._start_min, self._start_max))
+        if self._deterministic_starts is not None:
+            start = int(self._deterministic_starts[idx % self._epoch_steps])
+        else:
+            # Random windows with optional overlap jitter.
+            start = int(self._rng.integers(self._start_min, self._start_max))
         if self._overlap > 0:
             jitter = int(self._rng.integers(-self._overlap, self._overlap + 1))
             start = min(max(start + jitter, self._start_min), self._start_max - 1)

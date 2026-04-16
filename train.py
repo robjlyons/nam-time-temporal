@@ -28,6 +28,7 @@ def _parse_args():
         help="Validation every N train batches; must be <= ceil(epoch_steps/batch_size).",
     )
     p.add_argument("--log-every", type=int, default=50)
+    p.add_argument("--learning-rate", type=float, default=3e-4)
     p.add_argument("--num-workers", type=int, default=2)
     p.add_argument("--prefetch-factor", type=int, default=2)
     p.add_argument("--no-persistent-workers", action="store_true")
@@ -57,6 +58,22 @@ def _parse_args():
         default=1024,
         help="Train-window start jitter (+/- overlap) in samples.",
     )
+    p.add_argument(
+        "--no-deterministic-validation",
+        action="store_false",
+        dest="deterministic_validation",
+        help="Disable fixed validation windows (restore random validation windows).",
+    )
+    p.add_argument("--validation-seed", type=int, default=1337)
+    p.add_argument(
+        "--lr-scheduler",
+        choices=["none", "reduce_on_plateau"],
+        default="none",
+        help="Optional LR scheduler strategy.",
+    )
+    p.add_argument("--lr-factor", type=float, default=0.5)
+    p.add_argument("--lr-patience", type=int, default=6)
+    p.add_argument("--lr-min", type=float, default=1e-6)
     p.add_argument("--resume", type=str, default=None)
     p.add_argument("--device", choices=["auto", "cpu", "gpu"], default="auto")
     p.add_argument("--force-mono", action="store_true")
@@ -96,8 +113,15 @@ def main():
         target_samples=a.target,
         overlap_samples=a.overlap,
         epoch_steps=a.epoch_steps,
+        deterministic_validation=a.deterministic_validation,
+        validation_seed=a.validation_seed,
         hidden_size=a.hidden_size,
         local_layers=a.local_layers,
+        learning_rate=a.learning_rate,
+        lr_scheduler=None if a.lr_scheduler == "none" else a.lr_scheduler,
+        lr_factor=a.lr_factor,
+        lr_patience=a.lr_patience,
+        lr_min=a.lr_min,
         val_check_interval=a.val_check_interval,
         checkpoint_every_n_steps=a.checkpoint_every,
         preview_every_n_steps=a.preview_every,

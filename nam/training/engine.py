@@ -1,3 +1,5 @@
+from dataclasses import asdict
+import json
 from pathlib import Path
 
 import pytorch_lightning as pl
@@ -70,6 +72,7 @@ def train_temporal_model(config: TemporalTrainingConfig):
         split="train",
         validation_fraction=config.validation_fraction,
         epoch_steps=config.epoch_steps,
+        deterministic=False,
     )
     val_ds = LongSequenceDataset(
         pair=pair,
@@ -79,6 +82,8 @@ def train_temporal_model(config: TemporalTrainingConfig):
         split="validation",
         validation_fraction=config.validation_fraction,
         epoch_steps=max(128, config.epoch_steps // 10),
+        seed=config.validation_seed,
+        deterministic=config.deterministic_validation,
     )
     dl_kwargs = {
         "batch_size": config.batch_size,
@@ -124,8 +129,28 @@ def train_temporal_model(config: TemporalTrainingConfig):
         "optimizer": {"lr": config.learning_rate},
         "lr_scheduler": None,
     }
+    if config.lr_scheduler == "reduce_on_plateau":
+        module_config["lr_scheduler"] = {
+            "class": "ReduceLROnPlateau",
+            "kwargs": {
+                "mode": "min",
+                "factor": config.lr_factor,
+                "patience": config.lr_patience,
+                "min_lr": config.lr_min,
+            },
+            "monitor": "val_loss",
+            "interval": "epoch",
+            "frequency": 1,
+        }
     if config.resume is not None:
         module_config["checkpoint_path"] = str(config.resume)
+    run_config = asdict(config)
+    run_config["input_wav"] = str(config.input_wav)
+    run_config["output_wav"] = str(config.output_wav)
+    run_config["outdir"] = str(config.outdir)
+    run_config["resume"] = str(config.resume) if config.resume else None
+    (config.outdir / "training_config.json").write_text(json.dumps(run_config, indent=2))
+    (config.outdir / "module_config.json").write_text(json.dumps(module_config, indent=2))
     model = LightningModule.init_from_config(module_config)
     model.net.sample_rate = pair.sample_rate
 
