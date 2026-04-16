@@ -3,13 +3,14 @@ Streaming-friendly dataset helpers for long temporal effects.
 """
 
 from dataclasses import dataclass as _dataclass
+import math as _math
 from pathlib import Path as _Path
 from typing import Literal as _Literal
 from typing import Optional as _Optional
 from typing import Tuple as _Tuple
 
-import librosa as _librosa
 import numpy as _np
+from scipy.io import wavfile as _wavfile
 from scipy import signal as _signal
 import torch as _torch
 from torch.utils.data import Dataset as _Dataset
@@ -17,6 +18,45 @@ from torch.utils.data import Dataset as _Dataset
 
 def _ensure_2d(x: _np.ndarray) -> _np.ndarray:
     return x[None, :] if x.ndim == 1 else x
+
+
+def _to_float32_audio(x: _np.ndarray) -> _np.ndarray:
+    if _np.issubdtype(x.dtype, _np.floating):
+        return x.astype(_np.float32)
+    if _np.issubdtype(x.dtype, _np.signedinteger):
+        info = _np.iinfo(x.dtype)
+        scale = float(max(abs(info.min), info.max))
+        return x.astype(_np.float32) / scale
+    if _np.issubdtype(x.dtype, _np.unsignedinteger):
+        info = _np.iinfo(x.dtype)
+        midpoint = (info.max + 1) / 2.0
+        return (x.astype(_np.float32) - midpoint) / midpoint
+    raise ValueError(f"Unsupported audio dtype {x.dtype}")
+
+
+def _load_wav(path: str | _Path) -> tuple[_np.ndarray, int]:
+    sample_rate, x = _wavfile.read(str(path))
+    x = _to_float32_audio(_np.asarray(x))
+    if x.ndim == 1:
+        x = x[None, :]
+    elif x.ndim == 2:
+        # wavfile returns (N,C), we use (C,N)
+        x = x.T
+    else:
+        raise ValueError(f"Unsupported wav shape {x.shape} for {path}")
+    return x.astype(_np.float32), int(sample_rate)
+
+
+def _resample_channels(
+    x: _np.ndarray, orig_sr: int, target_sr: int
+) -> _np.ndarray:
+    if int(orig_sr) == int(target_sr):
+        return x
+    g = _math.gcd(int(orig_sr), int(target_sr))
+    up = int(target_sr) // g
+    down = int(orig_sr) // g
+    y = _signal.resample_poly(x, up=up, down=down, axis=1)
+    return y.astype(_np.float32)
 
 
 @_dataclass
@@ -40,10 +80,10 @@ def load_audio_pair(
     target_sample_rate: _Optional[int] = None,
     force_mono: bool = False,
 ) -> AudioPair:
-    dry, dry_sr = _librosa.load(str(input_path), sr=None, mono=False)
-    wet, wet_sr = _librosa.load(str(output_path), sr=None, mono=False)
-    dry = _ensure_2d(dry).astype(_np.float32)
-    wet = _ensure_2d(wet).astype(_np.float32)
+    dry, dry_sr = _load_wav(input_path)
+    wet, wet_sr = _load_wav(output_path)
+    dry = _ensure_2d(dry)
+    wet = _ensure_2d(wet)
     if force_mono:
         dry = dry.mean(axis=0, keepdims=True)
         wet = wet.mean(axis=0, keepdims=True)
@@ -51,9 +91,9 @@ def load_audio_pair(
     if target_sample_rate is None:
         target_sample_rate = wet_sr if wet_sr != dry_sr else dry_sr
     if dry_sr != target_sample_rate:
-        dry = _librosa.resample(dry, orig_sr=dry_sr, target_sr=target_sample_rate, axis=1)
+        dry = _resample_channels(dry, orig_sr=dry_sr, target_sr=target_sample_rate)
     if wet_sr != target_sample_rate:
-        wet = _librosa.resample(wet, orig_sr=wet_sr, target_sr=target_sample_rate, axis=1)
+        wet = _resample_channels(wet, orig_sr=wet_sr, target_sr=target_sample_rate)
     if dry.shape[0] != wet.shape[0]:
         raise ValueError(
             f"Mismatched channels between dry ({dry.shape[0]}) and wet ({wet.shape[0]})."
