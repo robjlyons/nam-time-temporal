@@ -26,12 +26,16 @@ class TemporalTrainingConfig:
     preview_every_n_steps: int = 1000
     log_every_n_steps: int = 50
     precision: str = "32-true"
+    enable_logger: bool = True
     learning_rate: float = 3e-4
     lr_scheduler: Optional[str] = None  # none|reduce_on_plateau
     lr_factor: float = 0.5
     lr_patience: int = 6
     lr_min: float = 1e-6
+    esr_denominator_floor: Optional[float] = 1e-8
     hidden_size: int = 48
+    train_burn_in: Optional[int] = None
+    train_truncate: Optional[int] = None
     local_channels: int = 16
     local_kernel_size: int = 5
     local_layers: int = 2

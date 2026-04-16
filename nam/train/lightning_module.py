@@ -98,6 +98,7 @@ class LossConfig(_InitializableFromConfig):
     pre_emph_mrstft_weight: _Optional[float] = None
     pre_emph_mrstft_coef: _Optional[float] = None
     custom_losses: _Optional[_Dict[str, _CustomLoss]] = None
+    esr_denominator_floor: _Optional[float] = None
 
     @classmethod
     def parse_config(cls, config):
@@ -163,6 +164,7 @@ class LossConfig(_InitializableFromConfig):
             "pre_emph_mrstft_weight": config.get("pre_emph_mrstft_weight"),
             "pre_emph_mrstft_coef": config.get("pre_emph_mrstft_coef"),
             "custom_losses": custom_losses,
+            "esr_denominator_floor": config.get("esr_denominator_floor"),
         }
 
     def apply_mask(self, *args):
@@ -368,7 +370,11 @@ class LightningModule(_pl.LightningModule, _InitializableFromConfig):
         :param targets: (B,L)
         :return: ()
         """
-        return _esr(preds, targets)
+        return _esr(
+            preds,
+            targets,
+            denominator_floor=self._loss_config.esr_denominator_floor,
+        )
 
     def _get_loss_dict(self, preds, targets) -> _Dict[str, _LossItem]:
         """

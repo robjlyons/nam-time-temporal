@@ -122,8 +122,16 @@ class LSTM(_BaseNet, _ImportsWeights):
         self._input_size = input_size
         self._core = _L(self._input_size, hidden_size, batch_first=True, **lstm_kwargs)
         self._head = self._init_head(hidden_size)
-        self._train_burn_in = train_burn_in
-        self._train_truncate = train_truncate
+        self._train_burn_in = (
+            int(train_burn_in)
+            if train_burn_in is not None and int(train_burn_in) > 0
+            else None
+        )
+        self._train_truncate = (
+            int(train_truncate)
+            if train_truncate is not None and int(train_truncate) > 0
+            else None
+        )
         self._initial_cell = _nn.Parameter(
             _torch.zeros((lstm_kwargs.get("num_layers", 1), hidden_size))
         )

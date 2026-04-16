@@ -107,8 +107,14 @@ def _train_and_eval(
         str(cfg["target"]),
         "--hidden-size",
         str(cfg["hidden_size"]),
+        "--train-burn-in",
+        str(cfg.get("train_burn_in", 0)),
+        "--train-truncate",
+        str(cfg.get("train_truncate", 0)),
         "--learning-rate",
         str(cfg["learning_rate"]),
+        "--esr-denominator-floor",
+        str(cfg.get("esr_denominator_floor", 0.0)),
         "--mrstft-weight",
         str(cfg["mrstft_weight"]),
         "--epoch-steps",
@@ -128,6 +134,8 @@ def _train_and_eval(
     ]
     if cfg.get("force_mono", False):
         train_cmd.append("--force-mono")
+    if cfg.get("no_logger", True):
+        train_cmd.append("--no-logger")
     if cfg.get("lr_scheduler", "none") != "none":
         train_cmd.extend(
             [
@@ -181,6 +189,7 @@ def _default_experiments() -> list[dict[str, Any]]:
     return [
         {"name": "baseline"},
         {"name": "context16384", "context": 16384},
+        {"name": "truncate4096", "train_truncate": 4096, "train_burn_in": 2048},
         {"name": "hidden96", "hidden_size": 96},
         {"name": "mrstft0", "mrstft_weight": 0.0},
         {"name": "lr1e4", "learning_rate": 1e-4},
@@ -200,7 +209,10 @@ def main() -> None:
     parser.add_argument("--context", type=int, default=8192)
     parser.add_argument("--target-size", type=int, default=8192)
     parser.add_argument("--hidden-size", type=int, default=48)
+    parser.add_argument("--train-burn-in", type=int, default=0)
+    parser.add_argument("--train-truncate", type=int, default=0)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--esr-denominator-floor", type=float, default=1e-8)
     parser.add_argument("--mrstft-weight", type=float, default=2e-4)
     parser.add_argument("--epoch-steps", type=int, default=2000)
     parser.add_argument("--val-check-interval", type=int, default=250)
@@ -209,6 +221,7 @@ def main() -> None:
     parser.add_argument("--num-workers", type=int, default=2)
     parser.add_argument("--precision", default="16-mixed")
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--with-logger", action="store_true")
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
@@ -222,7 +235,10 @@ def main() -> None:
         "context": int(args.context),
         "target": int(args.target_size),
         "hidden_size": int(args.hidden_size),
+        "train_burn_in": int(args.train_burn_in),
+        "train_truncate": int(args.train_truncate),
         "learning_rate": float(args.learning_rate),
+        "esr_denominator_floor": float(args.esr_denominator_floor),
         "mrstft_weight": float(args.mrstft_weight),
         "epoch_steps": int(args.epoch_steps),
         "val_check_interval": int(args.val_check_interval),
@@ -231,6 +247,7 @@ def main() -> None:
         "num_workers": int(args.num_workers),
         "precision": str(args.precision),
         "device": str(args.device),
+        "no_logger": not bool(args.with_logger),
     }
     experiments = (
         json.loads(Path(args.plan_json).read_text())

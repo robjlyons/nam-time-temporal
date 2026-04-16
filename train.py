@@ -39,12 +39,29 @@ def _parse_args():
         choices=["32-true", "16-mixed"],
     )
     p.add_argument(
+        "--no-logger",
+        action="store_true",
+        help="Disable Lightning logger (useful in constrained notebook runtimes).",
+    )
+    p.add_argument(
         "--mrstft-weight",
         type=float,
         default=2e-4,
         help="Set to 0 to disable MRSTFT for faster exploratory runs.",
     )
     p.add_argument("--hidden-size", type=int, default=48, help="TemporalHybrid LSTM hidden size.")
+    p.add_argument(
+        "--train-burn-in",
+        type=int,
+        default=None,
+        help="Optional burn-in samples before loss in LSTM training.",
+    )
+    p.add_argument(
+        "--train-truncate",
+        type=int,
+        default=None,
+        help="Optional truncated BPTT block length for LSTM training.",
+    )
     p.add_argument("--local-layers", type=int, default=2, help="Depth of local conv stack.")
     p.add_argument(
         "--epoch-steps",
@@ -74,6 +91,12 @@ def _parse_args():
     p.add_argument("--lr-factor", type=float, default=0.5)
     p.add_argument("--lr-patience", type=int, default=6)
     p.add_argument("--lr-min", type=float, default=1e-6)
+    p.add_argument(
+        "--esr-denominator-floor",
+        type=float,
+        default=1e-8,
+        help="Clamp ESR denominator for low-energy segments. Use <=0 to disable.",
+    )
     p.add_argument("--resume", type=str, default=None)
     p.add_argument("--device", choices=["auto", "cpu", "gpu"], default="auto")
     p.add_argument("--force-mono", action="store_true")
@@ -116,17 +139,23 @@ def main():
         deterministic_validation=a.deterministic_validation,
         validation_seed=a.validation_seed,
         hidden_size=a.hidden_size,
+        train_burn_in=a.train_burn_in if a.train_burn_in is not None and a.train_burn_in > 0 else None,
+        train_truncate=a.train_truncate if a.train_truncate is not None and a.train_truncate > 0 else None,
         local_layers=a.local_layers,
         learning_rate=a.learning_rate,
         lr_scheduler=None if a.lr_scheduler == "none" else a.lr_scheduler,
         lr_factor=a.lr_factor,
         lr_patience=a.lr_patience,
         lr_min=a.lr_min,
+        esr_denominator_floor=(
+            a.esr_denominator_floor if a.esr_denominator_floor > 0 else None
+        ),
         val_check_interval=a.val_check_interval,
         checkpoint_every_n_steps=a.checkpoint_every,
         preview_every_n_steps=a.preview_every,
         log_every_n_steps=a.log_every,
         precision=a.precision,
+        enable_logger=not a.no_logger,
         mrstft_weight=a.mrstft_weight if a.mrstft_weight > 0 else None,
         resume=Path(a.resume) if a.resume else None,
         device=a.device,

@@ -90,10 +90,16 @@ def main() -> None:
             str(cfg["target_samples"]),
             "--hidden-size",
             str(cfg["hidden_size"]),
+            "--train-burn-in",
+            str(cfg.get("train_burn_in") or 0),
+            "--train-truncate",
+            str(cfg.get("train_truncate") or 0),
             "--local-layers",
             str(cfg["local_layers"]),
             "--learning-rate",
             str(cfg["learning_rate"]),
+            "--esr-denominator-floor",
+            str(cfg.get("esr_denominator_floor") or 0.0),
             "--mrstft-weight",
             str(cfg["mrstft_weight"] if cfg["mrstft_weight"] is not None else 0.0),
             "--epoch-steps",
@@ -128,6 +134,8 @@ def main() -> None:
             )
         if cfg.get("force_mono", False):
             train_cmd.append("--force-mono")
+        if not cfg.get("enable_logger", True):
+            train_cmd.append("--no-logger")
 
         _run(train_cmd, cwd=repo_root)
         eval_cmd = [

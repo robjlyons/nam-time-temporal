@@ -118,12 +118,15 @@ def train_temporal_model(config: TemporalTrainingConfig):
                 "local_layers": config.local_layers,
                 "fuse_alpha": 1.0,
                 "context_samples": config.context_samples,
+                "train_burn_in": config.train_burn_in,
+                "train_truncate": config.train_truncate,
                 "sample_rate": pair.sample_rate,
             },
         },
         "loss": {
             "mse_weight": 1.0,
             "mrstft_weight": config.mrstft_weight,
+            "esr_denominator_floor": config.esr_denominator_floor,
             "val_loss": "esr",
         },
         "optimizer": {"lr": config.learning_rate},
@@ -179,6 +182,7 @@ def train_temporal_model(config: TemporalTrainingConfig):
     trainer = pl.Trainer(
         default_root_dir=str(config.outdir),
         callbacks=callbacks,
+        logger=config.enable_logger,
         max_steps=config.max_steps,
         val_check_interval=val_check_interval,
         accelerator=accelerator,

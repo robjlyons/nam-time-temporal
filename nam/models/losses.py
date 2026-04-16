@@ -27,7 +27,11 @@ def apply_pre_emphasis_filter(x: _torch.Tensor, coef: float) -> _torch.Tensor:
     return x[..., 1:] - coef * x[..., :-1]
 
 
-def esr(preds: _torch.Tensor, targets: _torch.Tensor) -> _torch.Tensor:
+def esr(
+    preds: _torch.Tensor,
+    targets: _torch.Tensor,
+    denominator_floor: _Optional[float] = None,
+) -> _torch.Tensor:
     """
     ESR of (a batch of) predictions & targets
 
@@ -45,10 +49,10 @@ def esr(preds: _torch.Tensor, targets: _torch.Tensor) -> _torch.Tensor:
         raise ValueError(
             f"Expect 2D targets (batch_size, num_samples). Got {targets.shape}"
         )
-    return _torch.mean(
-        _torch.mean(_torch.square(preds - targets), dim=1)
-        / _torch.mean(_torch.square(targets), dim=1)
-    )
+    den = _torch.mean(_torch.square(targets), dim=1)
+    if denominator_floor is not None and denominator_floor > 0:
+        den = den.clamp_min(float(denominator_floor))
+    return _torch.mean(_torch.mean(_torch.square(preds - targets), dim=1) / den)
 
 
 def multi_resolution_stft_loss(
