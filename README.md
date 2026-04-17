@@ -40,7 +40,7 @@ Or use the batch wrapper (double-click-friendly), which forwards all args:
 Fresh run example:
 
 ```powershell
-pwsh -File tools/run_temporal_windows_cuda.ps1 `
+powershell -ExecutionPolicy Bypass -File tools/run_temporal_windows_cuda.ps1 `
   -Mode fresh `
   -InputWav "C:\data\input.wav" `
   -OutputWav "C:\data\output.wav" `
@@ -50,7 +50,7 @@ pwsh -File tools/run_temporal_windows_cuda.ps1 `
 Resume example (uses `OutDir\checkpoints\last.ckpt`):
 
 ```powershell
-pwsh -File tools/run_temporal_windows_cuda.ps1 `
+powershell -ExecutionPolicy Bypass -File tools/run_temporal_windows_cuda.ps1 `
   -Mode resume `
   -InputWav "C:\data\input.wav" `
   -OutputWav "C:\data\output.wav" `
