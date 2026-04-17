@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import wavio
 
+from nam.data_alignment import preprocess_pair
 from nam.data_streaming import load_audio_pair
 from nam.inference.offline import process_chunked
 from nam.models import init_from_nam
@@ -67,6 +68,27 @@ def _parse_args():
     p.add_argument("--target", required=True)
     p.add_argument("--outdir", default="eval_out")
     p.add_argument("--chunk-size", type=int, default=16384)
+    p.add_argument("--align-max-delay-samples", type=int, default=96000)
+    p.add_argument(
+        "--alignment-mode",
+        choices=["none", "global", "piecewise"],
+        default="global",
+    )
+    p.add_argument(
+        "--piecewise-block-samples",
+        type=int,
+        default=65536,
+    )
+    p.add_argument("--piecewise-hop-samples", type=int, default=None)
+    p.add_argument("--piecewise-smooth-blocks", type=int, default=3)
+    p.add_argument("--piecewise-max-residual-delay-samples", type=int, default=512)
+    p.add_argument("--piecewise-min-peak-ratio", type=float, default=1.02)
+    p.add_argument(
+        "--normalization-mode",
+        choices=["none", "rms_match", "affine"],
+        default="none",
+    )
+    p.add_argument("--remove-dc", action="store_true")
     return p.parse_args()
 
 
@@ -76,6 +98,24 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
 
     pair = load_audio_pair(a.input, a.target, target_sample_rate=None, force_mono=False)
+    dry, wet, preflight = preprocess_pair(
+        dry=pair.dry,
+        wet=pair.wet,
+        max_delay_samples=int(a.align_max_delay_samples),
+        alignment_mode=str(a.alignment_mode),
+        piecewise_block_samples=int(a.piecewise_block_samples),
+        piecewise_hop_samples=(
+            int(a.piecewise_hop_samples) if a.piecewise_hop_samples is not None else None
+        ),
+        piecewise_smooth_blocks=int(a.piecewise_smooth_blocks),
+        piecewise_max_residual_delay_samples=int(a.piecewise_max_residual_delay_samples),
+        piecewise_min_peak_ratio=float(a.piecewise_min_peak_ratio),
+        normalization_mode=str(a.normalization_mode),
+        remove_dc=bool(a.remove_dc),
+    )
+    pair.dry = dry
+    pair.wet = wet
+    (outdir / "preprocessing_report.json").write_text(json.dumps(preflight, indent=2))
     model = _load_model(Path(a.checkpoint))
     sr = pair.sample_rate
     x = torch.from_numpy(pair.dry).float()

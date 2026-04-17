@@ -137,11 +137,44 @@ def _train_and_eval(
         str(cfg["precision"]),
         "--device",
         str(cfg["device"]),
+        "--alignment-mode",
+        str(cfg.get("alignment_mode", "global")),
+        "--normalization-mode",
+        str(cfg.get("normalization_mode", "none")),
+        "--min-alignment-peak-ratio",
+        str(cfg.get("min_alignment_peak_ratio", 1.25)),
+        "--max-residual-delay-std-samples",
+        str(cfg.get("max_residual_delay_std_samples", 4.0)),
+        "--clip-threshold",
+        str(cfg.get("clip_threshold", 0.999)),
+        "--max-clip-fraction",
+        str(cfg.get("max_clip_fraction", 0.02)),
     ]
     if cfg.get("active_window_min_rms") is not None:
         train_cmd.extend(["--active-window-min-rms", str(cfg["active_window_min_rms"])])
     if cfg.get("validation_require_active", False):
         train_cmd.append("--validation-require-active")
+    if cfg.get("remove_dc", False):
+        train_cmd.append("--remove-dc")
+    if cfg.get("fail_on_quality_gates", False):
+        train_cmd.append("--fail-on-quality-gates")
+    if cfg.get("piecewise_hop_samples") is not None:
+        train_cmd.extend(["--piecewise-hop-samples", str(cfg["piecewise_hop_samples"])])
+    if cfg.get("piecewise_block_samples") is not None:
+        train_cmd.extend(["--piecewise-block-samples", str(cfg["piecewise_block_samples"])])
+    if cfg.get("piecewise_smooth_blocks") is not None:
+        train_cmd.extend(["--piecewise-smooth-blocks", str(cfg["piecewise_smooth_blocks"])])
+    if cfg.get("piecewise_max_residual_delay_samples") is not None:
+        train_cmd.extend(
+            [
+                "--piecewise-max-residual-delay-samples",
+                str(cfg["piecewise_max_residual_delay_samples"]),
+            ]
+        )
+    if cfg.get("piecewise_min_peak_ratio") is not None:
+        train_cmd.extend(
+            ["--piecewise-min-peak-ratio", str(cfg["piecewise_min_peak_ratio"])]
+        )
     if cfg.get("force_mono", False):
         train_cmd.append("--force-mono")
     if cfg.get("no_logger", True):
@@ -273,6 +306,12 @@ def main() -> None:
         "precision": str(args.precision),
         "device": str(args.device),
         "no_logger": not bool(args.with_logger),
+        "alignment_mode": "global",
+        "normalization_mode": "none",
+        "min_alignment_peak_ratio": 1.25,
+        "max_residual_delay_std_samples": 4.0,
+        "clip_threshold": 0.999,
+        "max_clip_fraction": 0.02,
     }
     if args.fast_plateau:
         base.update(

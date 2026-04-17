@@ -130,6 +130,82 @@ def _parse_args():
     p.add_argument("--device", choices=["auto", "cpu", "gpu"], default="auto")
     p.add_argument("--force-mono", action="store_true")
     p.add_argument(
+        "--alignment-mode",
+        choices=["none", "global", "piecewise"],
+        default="global",
+        help="Alignment strategy for dry/wet preprocessing.",
+    )
+    p.add_argument(
+        "--piecewise-block-samples",
+        type=int,
+        default=65536,
+        help="Block size used for piecewise lag estimation.",
+    )
+    p.add_argument(
+        "--piecewise-hop-samples",
+        type=int,
+        default=None,
+        help="Hop used for piecewise lag estimation (default: block/2).",
+    )
+    p.add_argument(
+        "--piecewise-smooth-blocks",
+        type=int,
+        default=3,
+        help="Moving-average smoothing width over piecewise lag estimates.",
+    )
+    p.add_argument(
+        "--piecewise-max-residual-delay-samples",
+        type=int,
+        default=512,
+        help="Max local residual lag searched after global alignment.",
+    )
+    p.add_argument(
+        "--piecewise-min-peak-ratio",
+        type=float,
+        default=1.02,
+        help="Min local peak ratio required to accept a block lag estimate.",
+    )
+    p.add_argument(
+        "--normalization-mode",
+        choices=["none", "rms_match", "affine"],
+        default="none",
+        help="Optional signal normalization strategy before training.",
+    )
+    p.add_argument(
+        "--remove-dc",
+        action="store_true",
+        help="Remove per-channel DC before optional normalization.",
+    )
+    p.add_argument(
+        "--min-alignment-peak-ratio",
+        type=float,
+        default=1.25,
+        help="Quality gate threshold for global alignment confidence.",
+    )
+    p.add_argument(
+        "--max-residual-delay-std-samples",
+        type=float,
+        default=4.0,
+        help="Quality gate threshold for post-alignment residual lag std.",
+    )
+    p.add_argument(
+        "--clip-threshold",
+        type=float,
+        default=0.999,
+        help="Absolute sample threshold considered clipped.",
+    )
+    p.add_argument(
+        "--max-clip-fraction",
+        type=float,
+        default=0.02,
+        help="Quality gate max allowed clipped sample fraction.",
+    )
+    p.add_argument(
+        "--fail-on-quality-gates",
+        action="store_true",
+        help="Fail immediately if preprocessing quality gates are violated.",
+    )
+    p.add_argument(
         "--m1-tuned",
         action="store_true",
         help="Apply conservative Apple Silicon speed defaults.",
@@ -198,6 +274,19 @@ def main():
         resume=Path(a.resume) if a.resume else None,
         device=a.device,
         force_mono=a.force_mono,
+        alignment_mode=a.alignment_mode,
+        piecewise_block_samples=a.piecewise_block_samples,
+        piecewise_hop_samples=a.piecewise_hop_samples,
+        piecewise_smooth_blocks=a.piecewise_smooth_blocks,
+        piecewise_max_residual_delay_samples=a.piecewise_max_residual_delay_samples,
+        piecewise_min_peak_ratio=a.piecewise_min_peak_ratio,
+        normalization_mode=a.normalization_mode,
+        remove_dc=a.remove_dc,
+        min_alignment_peak_ratio=a.min_alignment_peak_ratio,
+        max_residual_delay_std_samples=a.max_residual_delay_std_samples,
+        clip_threshold=a.clip_threshold,
+        max_clip_fraction=a.max_clip_fraction,
+        fail_on_quality_gates=a.fail_on_quality_gates,
     )
     train_temporal_model(cfg)
 

@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader
 
-from ..data_alignment import auto_align_pair
+from ..data_alignment import preprocess_pair
 from ..data_streaming import LongSequenceDataset
 from ..data_streaming import load_audio_pair
 from ..train.lightning_module import LightningModule
@@ -55,14 +55,50 @@ def train_temporal_model(config: TemporalTrainingConfig):
         f"channels={pair.channels} samples={pair.num_samples}"
     )
     if config.align_max_delay_samples is not None:
-        print("[progress] estimating delay and aligning...")
-        dry, wet, delay = auto_align_pair(
-            dry=pair.dry, wet=pair.wet, max_delay_samples=config.align_max_delay_samples
+        print("[progress] running preprocessing (alignment/normalization)...")
+        dry, wet, preflight = preprocess_pair(
+            dry=pair.dry,
+            wet=pair.wet,
+            max_delay_samples=config.align_max_delay_samples,
+            alignment_mode=str(config.alignment_mode),
+            piecewise_block_samples=int(config.piecewise_block_samples),
+            piecewise_hop_samples=(
+                int(config.piecewise_hop_samples)
+                if config.piecewise_hop_samples is not None
+                else None
+            ),
+            piecewise_smooth_blocks=int(config.piecewise_smooth_blocks),
+            piecewise_max_residual_delay_samples=int(
+                config.piecewise_max_residual_delay_samples
+            ),
+            piecewise_min_peak_ratio=float(config.piecewise_min_peak_ratio),
+            normalization_mode=str(config.normalization_mode),
+            remove_dc=bool(config.remove_dc),
+            min_alignment_peak_ratio=float(config.min_alignment_peak_ratio),
+            max_residual_delay_std_samples=float(config.max_residual_delay_std_samples),
+            clip_threshold=float(config.clip_threshold),
+            max_clip_fraction=float(config.max_clip_fraction),
         )
         pair.dry = dry
         pair.wet = wet
-        (config.outdir / "alignment.txt").write_text(f"estimated_delay_samples={delay}\n")
-        print(f"[progress] alignment complete | estimated_delay_samples={delay}")
+        (config.outdir / "preprocessing_report.json").write_text(
+            json.dumps(preflight, indent=2)
+        )
+        delay = preflight["alignment"].get("global_delay_samples", 0)
+        (config.outdir / "alignment.txt").write_text(
+            f"estimated_delay_samples={delay}\n"
+        )
+        if not preflight["quality"]["passed"]:
+            print(
+                "[progress] preprocessing quality warnings: "
+                + "; ".join(preflight["quality"]["messages"])
+            )
+            if config.fail_on_quality_gates:
+                raise RuntimeError(
+                    "Preprocessing quality gates failed: "
+                    + "; ".join(preflight["quality"]["messages"])
+                )
+        print(f"[progress] preprocessing complete | estimated_delay_samples={delay}")
 
     train_ds = LongSequenceDataset(
         pair=pair,

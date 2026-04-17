@@ -122,6 +122,18 @@ def main() -> None:
             str(cfg["precision"]),
             "--device",
             str(cfg["device"]),
+            "--alignment-mode",
+            str(cfg.get("alignment_mode", "global")),
+            "--normalization-mode",
+            str(cfg.get("normalization_mode", "none")),
+            "--min-alignment-peak-ratio",
+            str(cfg.get("min_alignment_peak_ratio", 1.25)),
+            "--max-residual-delay-std-samples",
+            str(cfg.get("max_residual_delay_std_samples", 4.0)),
+            "--clip-threshold",
+            str(cfg.get("clip_threshold", 0.999)),
+            "--max-clip-fraction",
+            str(cfg.get("max_clip_fraction", 0.02)),
         ]
         if not cfg.get("deterministic_validation", True):
             train_cmd.append("--no-deterministic-validation")
@@ -131,6 +143,27 @@ def main() -> None:
             )
         if cfg.get("validation_require_active", False):
             train_cmd.append("--validation-require-active")
+        if cfg.get("remove_dc", False):
+            train_cmd.append("--remove-dc")
+        if cfg.get("fail_on_quality_gates", False):
+            train_cmd.append("--fail-on-quality-gates")
+        if cfg.get("piecewise_hop_samples") is not None:
+            train_cmd.extend(["--piecewise-hop-samples", str(cfg["piecewise_hop_samples"])])
+        if cfg.get("piecewise_block_samples") is not None:
+            train_cmd.extend(["--piecewise-block-samples", str(cfg["piecewise_block_samples"])])
+        if cfg.get("piecewise_smooth_blocks") is not None:
+            train_cmd.extend(["--piecewise-smooth-blocks", str(cfg["piecewise_smooth_blocks"])])
+        if cfg.get("piecewise_max_residual_delay_samples") is not None:
+            train_cmd.extend(
+                [
+                    "--piecewise-max-residual-delay-samples",
+                    str(cfg["piecewise_max_residual_delay_samples"]),
+                ]
+            )
+        if cfg.get("piecewise_min_peak_ratio") is not None:
+            train_cmd.extend(
+                ["--piecewise-min-peak-ratio", str(cfg["piecewise_min_peak_ratio"])]
+            )
         if cfg.get("lr_scheduler"):
             train_cmd.extend(
                 [
