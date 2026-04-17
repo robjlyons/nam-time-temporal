@@ -100,8 +100,14 @@ def main() -> None:
             str(cfg["learning_rate"]),
             "--esr-denominator-floor",
             str(cfg.get("esr_denominator_floor") or 0.0),
+            "--esr-weight",
+            str(cfg.get("esr_weight") or 0.0),
             "--mrstft-weight",
             str(cfg["mrstft_weight"] if cfg["mrstft_weight"] is not None else 0.0),
+            "--active-sampling-ratio",
+            str(cfg.get("active_sampling_ratio", 0.0)),
+            "--active-rms-quantile",
+            str(cfg.get("active_rms_quantile", 0.8)),
             "--epoch-steps",
             str(cfg["epoch_steps"]),
             "--val-check-interval",
@@ -119,6 +125,12 @@ def main() -> None:
         ]
         if not cfg.get("deterministic_validation", True):
             train_cmd.append("--no-deterministic-validation")
+        if cfg.get("active_window_min_rms") is not None:
+            train_cmd.extend(
+                ["--active-window-min-rms", str(cfg["active_window_min_rms"])]
+            )
+        if cfg.get("validation_require_active", False):
+            train_cmd.append("--validation-require-active")
         if cfg.get("lr_scheduler"):
             train_cmd.extend(
                 [

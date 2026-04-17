@@ -73,6 +73,9 @@ def train_temporal_model(config: TemporalTrainingConfig):
         validation_fraction=config.validation_fraction,
         epoch_steps=config.epoch_steps,
         deterministic=False,
+        active_sampling_ratio=config.active_sampling_ratio,
+        active_rms_quantile=config.active_rms_quantile,
+        active_window_min_rms=config.active_window_min_rms,
     )
     val_ds = LongSequenceDataset(
         pair=pair,
@@ -84,6 +87,10 @@ def train_temporal_model(config: TemporalTrainingConfig):
         epoch_steps=max(128, config.epoch_steps // 10),
         seed=config.validation_seed,
         deterministic=config.deterministic_validation,
+        active_sampling_ratio=0.0,
+        active_rms_quantile=config.active_rms_quantile,
+        active_window_min_rms=config.active_window_min_rms,
+        validation_require_active=config.validation_require_active,
     )
     dl_kwargs = {
         "batch_size": config.batch_size,
@@ -125,6 +132,7 @@ def train_temporal_model(config: TemporalTrainingConfig):
         },
         "loss": {
             "mse_weight": 1.0,
+            "esr_weight": config.esr_weight,
             "mrstft_weight": config.mrstft_weight,
             "esr_denominator_floor": config.esr_denominator_floor,
             "val_loss": "esr",

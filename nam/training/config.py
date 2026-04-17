@@ -16,6 +16,14 @@ class TemporalTrainingConfig:
     target_samples: int = 8192
     overlap_samples: int = 1024
     validation_fraction: float = 0.1
+    # Probability of sampling a high-energy wet window for training.
+    active_sampling_ratio: float = 0.0
+    # Quantile in [0,1] used to define high-energy windows (if min RMS not provided).
+    active_rms_quantile: float = 0.8
+    # Optional absolute RMS threshold for active windows.
+    active_window_min_rms: Optional[float] = None
+    # Restrict deterministic validation windows to active segments.
+    validation_require_active: bool = False
     deterministic_validation: bool = True
     validation_seed: int = 1337
     epoch_steps: int = 2000
@@ -33,6 +41,7 @@ class TemporalTrainingConfig:
     lr_patience: int = 6
     lr_min: float = 1e-6
     esr_denominator_floor: Optional[float] = 1e-8
+    esr_weight: Optional[float] = 0.25
     hidden_size: int = 48
     train_burn_in: Optional[int] = None
     train_truncate: Optional[int] = None

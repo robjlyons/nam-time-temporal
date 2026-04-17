@@ -115,8 +115,14 @@ def _train_and_eval(
         str(cfg["learning_rate"]),
         "--esr-denominator-floor",
         str(cfg.get("esr_denominator_floor", 0.0)),
+        "--esr-weight",
+        str(cfg.get("esr_weight", 0.0)),
         "--mrstft-weight",
         str(cfg["mrstft_weight"]),
+        "--active-sampling-ratio",
+        str(cfg.get("active_sampling_ratio", 0.0)),
+        "--active-rms-quantile",
+        str(cfg.get("active_rms_quantile", 0.8)),
         "--epoch-steps",
         str(cfg["epoch_steps"]),
         "--val-check-interval",
@@ -132,6 +138,10 @@ def _train_and_eval(
         "--device",
         str(cfg["device"]),
     ]
+    if cfg.get("active_window_min_rms") is not None:
+        train_cmd.extend(["--active-window-min-rms", str(cfg["active_window_min_rms"])])
+    if cfg.get("validation_require_active", False):
+        train_cmd.append("--validation-require-active")
     if cfg.get("force_mono", False):
         train_cmd.append("--force-mono")
     if cfg.get("no_logger", True):
@@ -188,11 +198,11 @@ def _train_and_eval(
 def _default_experiments() -> list[dict[str, Any]]:
     return [
         {"name": "baseline"},
-        {"name": "context16384", "context": 16384},
-        {"name": "truncate4096", "train_truncate": 4096, "train_burn_in": 2048},
+        {"name": "hidden64", "hidden_size": 64},
         {"name": "hidden96", "hidden_size": 96},
-        {"name": "mrstft0", "mrstft_weight": 0.0},
-        {"name": "lr1e4", "learning_rate": 1e-4},
+        {"name": "geom_a", "context": 8192, "target": 4096, "batch_size": 8},
+        {"name": "geom_b", "context": 12288, "target": 4096, "batch_size": 6},
+        {"name": "no_mrstft", "mrstft_weight": 0.0},
     ]
 
 
@@ -213,7 +223,12 @@ def main() -> None:
     parser.add_argument("--train-truncate", type=int, default=0)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--esr-denominator-floor", type=float, default=1e-8)
+    parser.add_argument("--esr-weight", type=float, default=0.25)
     parser.add_argument("--mrstft-weight", type=float, default=2e-4)
+    parser.add_argument("--active-sampling-ratio", type=float, default=0.7)
+    parser.add_argument("--active-rms-quantile", type=float, default=0.8)
+    parser.add_argument("--active-window-min-rms", type=float, default=None)
+    parser.add_argument("--validation-require-active", action="store_true")
     parser.add_argument("--epoch-steps", type=int, default=2000)
     parser.add_argument("--val-check-interval", type=int, default=250)
     parser.add_argument("--checkpoint-every", type=int, default=500)
@@ -222,6 +237,7 @@ def main() -> None:
     parser.add_argument("--precision", default="16-mixed")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--with-logger", action="store_true")
+    parser.add_argument("--fast-plateau", action="store_true")
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
@@ -239,7 +255,16 @@ def main() -> None:
         "train_truncate": int(args.train_truncate),
         "learning_rate": float(args.learning_rate),
         "esr_denominator_floor": float(args.esr_denominator_floor),
+        "esr_weight": float(args.esr_weight),
         "mrstft_weight": float(args.mrstft_weight),
+        "active_sampling_ratio": float(args.active_sampling_ratio),
+        "active_rms_quantile": float(args.active_rms_quantile),
+        "active_window_min_rms": (
+            float(args.active_window_min_rms)
+            if args.active_window_min_rms is not None
+            else None
+        ),
+        "validation_require_active": bool(args.validation_require_active),
         "epoch_steps": int(args.epoch_steps),
         "val_check_interval": int(args.val_check_interval),
         "checkpoint_every": int(args.checkpoint_every),
@@ -249,6 +274,15 @@ def main() -> None:
         "device": str(args.device),
         "no_logger": not bool(args.with_logger),
     }
+    if args.fast_plateau:
+        base.update(
+            {
+                "lr_scheduler": "reduce_on_plateau",
+                "lr_factor": 0.7,
+                "lr_patience": 2,
+                "lr_min": 1e-6,
+            }
+        )
     experiments = (
         json.loads(Path(args.plan_json).read_text())
         if args.plan_json is not None

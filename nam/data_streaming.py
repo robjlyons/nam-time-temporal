@@ -156,6 +156,10 @@ class LongSequenceDataset(_Dataset):
         seed: int = 42,
         epoch_steps: int = 10_000,
         deterministic: bool = False,
+        active_sampling_ratio: float = 0.0,
+        active_rms_quantile: float = 0.8,
+        active_window_min_rms: _Optional[float] = None,
+        validation_require_active: bool = False,
     ):
         if context_samples < 1 or target_samples < 1:
             raise ValueError("context_samples and target_samples must be positive.")
@@ -168,6 +172,12 @@ class LongSequenceDataset(_Dataset):
         self._rng = _np.random.default_rng(seed)
         self._epoch_steps = int(epoch_steps)
         self._deterministic = bool(deterministic)
+        self._active_sampling_ratio = float(active_sampling_ratio)
+        self._active_rms_quantile = float(active_rms_quantile)
+        self._active_window_min_rms = (
+            None if active_window_min_rms is None else float(active_window_min_rms)
+        )
+        self._validation_require_active = bool(validation_require_active)
         self.sample_rate = pair.sample_rate
 
         n = pair.num_samples
@@ -184,17 +194,59 @@ class LongSequenceDataset(_Dataset):
             self._start_max = valid_stop
         if self._start_max <= self._start_min:
             self._start_max = self._start_min + 1
+
+        all_starts = _np.arange(self._start_min, self._start_max, dtype=_np.int64)
+        self._active_starts = self._compute_active_starts(pair, all_starts)
+
         if self._deterministic:
             # Fixed validation windows reduce val-loss noise across checkpoints.
-            self._deterministic_starts = _np.linspace(
-                self._start_min,
-                self._start_max - 1,
-                num=self._epoch_steps,
-                endpoint=True,
-                dtype=_np.int64,
-            )
+            start_pool = all_starts
+            if self._split == "validation" and self._validation_require_active:
+                if self._active_starts is not None and len(self._active_starts) > 0:
+                    start_pool = self._active_starts
+            if len(start_pool) == 1:
+                self._deterministic_starts = _np.full(
+                    (self._epoch_steps,), int(start_pool[0]), dtype=_np.int64
+                )
+            else:
+                idx = _np.linspace(
+                    0, len(start_pool) - 1, num=self._epoch_steps, endpoint=True
+                )
+                self._deterministic_starts = start_pool[idx.astype(_np.int64)]
         else:
             self._deterministic_starts = None
+
+    def _compute_active_starts(
+        self, pair: AudioPair, starts: _np.ndarray
+    ) -> _Optional[_np.ndarray]:
+        if len(starts) == 0:
+            return None
+        need_active = (
+            self._active_sampling_ratio > 0.0
+            or (
+                self._split == "validation"
+                and self._validation_require_active
+            )
+        )
+        if not need_active:
+            return None
+        wet = pair.wet.mean(axis=0).astype(_np.float32, copy=False)
+        wet_sq = wet * wet
+        csum = _np.concatenate(
+            [_np.array([0.0], dtype=_np.float64), _np.cumsum(wet_sq, dtype=_np.float64)]
+        )
+        win_end = starts + self._target
+        win_mean_sq = (csum[win_end] - csum[starts]) / float(self._target)
+        win_rms = _np.sqrt(_np.maximum(win_mean_sq, 0.0))
+        if self._active_window_min_rms is not None and self._active_window_min_rms > 0:
+            threshold = float(self._active_window_min_rms)
+        else:
+            q = float(_np.clip(self._active_rms_quantile, 0.0, 1.0))
+            threshold = float(_np.quantile(win_rms, q))
+        active = starts[win_rms >= threshold]
+        if len(active) == 0:
+            return None
+        return active.astype(_np.int64, copy=False)
 
     def __len__(self) -> int:
         return self._epoch_steps
@@ -204,7 +256,16 @@ class LongSequenceDataset(_Dataset):
             start = int(self._deterministic_starts[idx % self._epoch_steps])
         else:
             # Random windows with optional overlap jitter.
-            start = int(self._rng.integers(self._start_min, self._start_max))
+            choose_active = (
+                self._active_starts is not None
+                and self._active_sampling_ratio > 0.0
+                and float(self._rng.random()) < self._active_sampling_ratio
+            )
+            if choose_active:
+                j = int(self._rng.integers(0, len(self._active_starts)))
+                start = int(self._active_starts[j])
+            else:
+                start = int(self._rng.integers(self._start_min, self._start_max))
         if self._overlap > 0:
             jitter = int(self._rng.integers(-self._overlap, self._overlap + 1))
             start = min(max(start + jitter, self._start_min), self._start_max - 1)

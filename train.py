@@ -83,6 +83,29 @@ def _parse_args():
     )
     p.add_argument("--validation-seed", type=int, default=1337)
     p.add_argument(
+        "--active-sampling-ratio",
+        type=float,
+        default=0.0,
+        help="Probability of sampling a high-energy wet segment during training.",
+    )
+    p.add_argument(
+        "--active-rms-quantile",
+        type=float,
+        default=0.8,
+        help="Quantile in [0,1] used to define high-energy windows.",
+    )
+    p.add_argument(
+        "--active-window-min-rms",
+        type=float,
+        default=None,
+        help="Optional absolute RMS threshold for active windows.",
+    )
+    p.add_argument(
+        "--validation-require-active",
+        action="store_true",
+        help="Restrict deterministic validation windows to active wet segments.",
+    )
+    p.add_argument(
         "--lr-scheduler",
         choices=["none", "reduce_on_plateau"],
         default="none",
@@ -96,6 +119,12 @@ def _parse_args():
         type=float,
         default=1e-8,
         help="Clamp ESR denominator for low-energy segments. Use <=0 to disable.",
+    )
+    p.add_argument(
+        "--esr-weight",
+        type=float,
+        default=0.25,
+        help="Weight of ESR term in training loss. Use <=0 to disable.",
     )
     p.add_argument("--resume", type=str, default=None)
     p.add_argument("--device", choices=["auto", "cpu", "gpu"], default="auto")
@@ -136,6 +165,14 @@ def main():
         target_samples=a.target,
         overlap_samples=a.overlap,
         epoch_steps=a.epoch_steps,
+        active_sampling_ratio=max(0.0, min(1.0, float(a.active_sampling_ratio))),
+        active_rms_quantile=max(0.0, min(1.0, float(a.active_rms_quantile))),
+        active_window_min_rms=(
+            a.active_window_min_rms
+            if a.active_window_min_rms is not None and a.active_window_min_rms > 0
+            else None
+        ),
+        validation_require_active=bool(a.validation_require_active),
         deterministic_validation=a.deterministic_validation,
         validation_seed=a.validation_seed,
         hidden_size=a.hidden_size,
@@ -150,6 +187,7 @@ def main():
         esr_denominator_floor=(
             a.esr_denominator_floor if a.esr_denominator_floor > 0 else None
         ),
+        esr_weight=(a.esr_weight if a.esr_weight > 0 else None),
         val_check_interval=a.val_check_interval,
         checkpoint_every_n_steps=a.checkpoint_every,
         preview_every_n_steps=a.preview_every,

@@ -112,6 +112,23 @@ def test_get_loss_dict_custom_loss():
         assert loss_dict[key].weight is not None
 
 
+def test_get_loss_dict_includes_weighted_esr_term():
+    obj = _lightning_module.LightningModule(
+        _MockBaseNet(1.0),
+        loss_config=_lightning_module.LossConfig(
+            mse_weight=None,
+            mrstft_weight=None,
+            esr_weight=0.25,
+        ),
+    )
+    preds = _torch.randn((3, 2048))
+    targets = _torch.randn(preds.shape)
+    loss_dict = obj._get_loss_dict(preds, targets)
+    assert "ESR" in loss_dict
+    assert loss_dict["ESR"].weight == 0.25
+    assert loss_dict["ESR"].value is not None
+
+
 def test_custom_losses_init():
     """
     Assert that a custom loss can be included in the loss config.

@@ -99,6 +99,7 @@ class LossConfig(_InitializableFromConfig):
     pre_emph_mrstft_coef: _Optional[float] = None
     custom_losses: _Optional[_Dict[str, _CustomLoss]] = None
     esr_denominator_floor: _Optional[float] = None
+    esr_weight: _Optional[float] = None
 
     @classmethod
     def parse_config(cls, config):
@@ -165,6 +166,7 @@ class LossConfig(_InitializableFromConfig):
             "pre_emph_mrstft_coef": config.get("pre_emph_mrstft_coef"),
             "custom_losses": custom_losses,
             "esr_denominator_floor": config.get("esr_denominator_floor"),
+            "esr_weight": config.get("esr_weight"),
         }
 
     def apply_mask(self, *args):
@@ -429,6 +431,12 @@ class LightningModule(_pl.LightningModule, _InitializableFromConfig):
                 preds.mean(dim=mean_dims), targets.mean(dim=mean_dims)
             )
             loss_dict["DC MSE"] = _LossItem(dc_weight, dc_loss)
+
+        if self._loss_config.esr_weight is not None:
+            loss_dict["ESR"] = _LossItem(
+                self._loss_config.esr_weight,
+                self._esr_loss(preds, targets),
+            )
 
         def get_custom_losses():
             if self._loss_config.custom_losses is None:
